@@ -5,8 +5,11 @@ import java.io.InputStream;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static javax.xml.stream.XMLInputFactory.IS_COALESCING;
+import static javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES;
+import static javax.xml.stream.XMLInputFactory.SUPPORT_DTD;
 
 /**
  * Maps the bytes from XML response to a POJO using the Cursor based StAX API.
@@ -20,6 +23,8 @@ public interface ResponseMapper<T> extends Function<InputStream, T> {
         return () -> {
             final XMLInputFactory factory = XMLInputFactory.newInstance();
             factory.setProperty(IS_COALESCING, TRUE);
+            factory.setProperty(SUPPORT_DTD, FALSE);
+            factory.setProperty(IS_SUPPORTING_EXTERNAL_ENTITIES, FALSE);
             return factory;
         };
     }
