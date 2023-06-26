@@ -5,16 +5,18 @@ import io.github.linktosriram.s3lite.http.spi.SdkHttpClient;
 import io.github.linktosriram.s3lite.http.spi.request.ImmutableRequest;
 import io.github.linktosriram.s3lite.http.spi.request.RequestBody;
 import io.github.linktosriram.s3lite.http.spi.response.ImmutableResponse;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpMessage;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPut;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequest;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpHeaders;
+import org.apache.hc.core5.http.HttpMessage;
+import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,7 +32,7 @@ import java.util.stream.Stream;
 import static io.github.linktosriram.s3lite.http.spi.HttpStatus.fromStatusCode;
 import static io.github.linktosriram.s3lite.http.spi.SdkHttpUtils.toQueryString;
 import static java.lang.String.join;
-import static org.apache.http.impl.client.HttpClients.createDefault;
+import static org.apache.hc.client5.http.impl.classic.HttpClients.createDefault;
 
 public class ApacheSdkHttpClient implements SdkHttpClient {
 
@@ -83,6 +85,12 @@ public class ApacheSdkHttpClient implements SdkHttpClient {
 
     private ImmutableResponse doPut(final ImmutableRequest request) {
         InputStream content = null;
+        List<String> contentTypeValues = request.getHeaders().get(HttpHeaders.CONTENT_TYPE);
+        ContentType contentType = ContentType.APPLICATION_OCTET_STREAM;
+        if (contentTypeValues != null && contentTypeValues.size() > 0) {
+            contentType = ContentType.parse(contentTypeValues.get(0));
+        }
+
         try {
             final URI uri = getUri(request);
             final HttpPut httpPut = new HttpPut(uri);
@@ -91,7 +99,7 @@ public class ApacheSdkHttpClient implements SdkHttpClient {
             RequestBody body = request.getRequestBody().orElse(null);
             if (body != null) {
                 content = body.getContentStreamProvider().get();
-                httpPut.setEntity(new InputStreamEntity(content, body.getContentLength()));
+                httpPut.setEntity(new InputStreamEntity(content, body.getContentLength(), contentType));
             }
 
             return retrieve(httpPut);
@@ -119,11 +127,11 @@ public class ApacheSdkHttpClient implements SdkHttpClient {
             final CloseableHttpResponse response = httpClient.execute(request);
             final HttpEntity entity = response.getEntity();
             final InputStream responseBody = entity != null ? entity.getContent() : null;
-            final int statusCode = response.getStatusLine().getStatusCode();
+            final int statusCode = response.getCode();
 
             return ImmutableResponse.builder()
                 .status(fromStatusCode(statusCode))
-                .headers(fromHeaders(response.getAllHeaders()))
+                .headers(fromHeaders(response.getHeaders()))
                 .responseBody(responseBody)
                 .build();
         } catch (final IOException e) {
