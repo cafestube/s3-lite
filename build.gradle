@@ -49,7 +49,7 @@ project(':core') {
 project(':http-client-apache') {
     dependencies {
         api project(':http-client-spi')
-        api 'org.apache.httpcomponents:httpclient:4.5.14'
+        api 'org.apache.httpcomponents.client5:httpclient5:5.2.1'
     }
 }
 
