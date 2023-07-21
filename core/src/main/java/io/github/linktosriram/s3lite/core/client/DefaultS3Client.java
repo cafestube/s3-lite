@@ -43,9 +43,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
-import static io.github.linktosriram.s3lite.http.spi.HttpMethod.DELETE;
-import static io.github.linktosriram.s3lite.http.spi.HttpMethod.GET;
-import static io.github.linktosriram.s3lite.http.spi.HttpMethod.PUT;
+import static io.github.linktosriram.s3lite.http.spi.HttpMethod.*;
 import static java.lang.String.format;
 import static java.net.URI.create;
 
@@ -123,6 +121,29 @@ final class DefaultS3Client implements S3Client {
                     }
                 })
                 .orElseThrow(() -> new RuntimeException("No response body found"));
+        } else {
+            throw handleErrorResponse(httpResponse);
+        }
+    }
+
+    @Override
+    public GetObjectResponse headObject(GetObjectRequest request) {
+        final URI endpoint = getEndpoint(request.getBucketName());
+        final String resourcePath = getResourcePath(request.getBucketName(), request.getKey());
+
+        final SignableRequest signableRequest = new DefaultSignableRequest(HEAD, endpoint, resourcePath);
+        final SdkRequestMarshaller<GetObjectRequest> marshaller = new GetObjectRequestMarshaller();
+        final SdkResponseUnmarshaller<GetObjectResponse> unmarshaller = new GetObjectResponseUnmarshaller();
+
+        marshaller.accept(signableRequest, request);
+        signer.sign(signableRequest, credentials);
+
+        final ImmutableResponse httpResponse = httpClient.apply(signableRequest);
+
+        if (httpResponse.getStatus().is2xxSuccessful()) {
+            final Map<String, List<String>> headers = httpResponse.getHeaders();
+
+            return unmarshaller.apply(headers);
         } else {
             throw handleErrorResponse(httpResponse);
         }

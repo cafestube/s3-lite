@@ -1,5 +1,6 @@
 package io.github.linktosriram.s3lite.api.client;
 
+import io.github.linktosriram.s3lite.api.exception.NoSuchKeyException;
 import io.github.linktosriram.s3lite.api.request.DeleteObjectRequest;
 import io.github.linktosriram.s3lite.api.request.GetObjectRequest;
 import io.github.linktosriram.s3lite.api.request.ListObjectsV2Request;
@@ -15,6 +16,7 @@ import io.github.linktosriram.s3lite.http.spi.request.RequestBody;
 
 import java.io.Closeable;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * Provides an interface for accessing the Amazon S3 web service.
@@ -49,6 +51,26 @@ public interface S3Client extends Closeable {
 
     default ResponseBytes<GetObjectResponse> getObjectAsBytes(final GetObjectRequest request) {
         return getObject(request, ResponseTransformer.toBytes());
+    }
+
+    /*
+     * Allows querying object metadata without downloading the actual object.
+     * This is useful, for example, when you need to determine e.g. the size of an object before downloading it.
+     */
+    default GetObjectResponse headObject(final GetObjectRequest request) {
+        throw new UnsupportedOperationException();
+    }
+
+    /*
+     * Allows querying object metadata without downloading the actual object.
+     * This will return an empty Optional if the object does not exist.
+     */
+    default Optional<GetObjectResponse> headObjectOptional(final GetObjectRequest request) {
+        try {
+            return Optional.of(headObject(request));
+        } catch (NoSuchKeyException ignored) {
+            return Optional.empty();
+        }
     }
 
     default DeleteObjectResponse deleteObject(final DeleteObjectRequest request) {
