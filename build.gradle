@@ -4,7 +4,7 @@ allprojects {
 
     sourceCompatibility = JavaVersion.VERSION_11
 
-    group = "io.github.linktosriram.s3lite"
+    group = "eu.cafestube.s3lite"
     version = "0.0.2-SNAPSHOT"
 
     repositories {
@@ -25,6 +25,13 @@ allprojects {
     }
 
     publishing {
+        repositories {
+            maven {
+                name = "cafestubeRepository"
+                credentials(PasswordCredentials.class)
+                url = uri("https://repo.cafestu.be/repository/maven-snapshots/")
+            }
+        }
         publications {
             maven(MavenPublication) {
                 from components.java
