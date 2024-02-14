@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -140,12 +141,34 @@ final class DefaultS3Client implements S3Client {
 
         final ImmutableResponse httpResponse = httpClient.apply(signableRequest);
 
+        final Map<String, List<String>> headers = httpResponse.getHeaders();
+
         if (httpResponse.getStatus().is2xxSuccessful()) {
-            final Map<String, List<String>> headers = httpResponse.getHeaders();
 
             return unmarshaller.apply(headers);
         } else {
-            throw handleErrorResponse(httpResponse);
+            //We cannot use default handleErrorResponse method here because a head request does not return body
+            final HttpStatus status = httpResponse.getStatus();
+
+            if(status.getStatusCode() == 404) {
+                throw new NoSuchKeyException(
+                    ErrorResponse.builder()
+                        /*
+                         * We assume this error message since we are not directly getting a response form S3
+                         * as far as I know. MinIO does give an error description, but we cannot expect everyone to use MinIO
+                         */
+                        .message("The specified key does not exist.")
+                        .code("NoSuchKey")
+                        .requestId(headers.get("X-Amz-Request-Id").stream().findFirst().orElse(null))
+                        .build()
+                );
+            } else {
+                throw new S3Exception(
+                    ErrorResponse.builder()
+                        .message("Service: S3, Status Code: " + status.getStatusCode())
+                        .build()
+                );
+            }
         }
     }
 
@@ -245,6 +268,7 @@ final class DefaultS3Client implements S3Client {
             return httpResponse.getResponseBody()
                 .map(inputStream -> {
                     try (final InputStream input = inputStream) {
+
                         final ErrorResponse errorResponse = new ErrorResponseMapper().apply(input);
                         if (errorResponse != null) {
                             switch (errorResponse.getCode()) {
